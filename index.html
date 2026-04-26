@@ -3,102 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOHANAD STORE</title>
+    <title>MOHANAD STORE | المتجر الرسمي</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-color: #f8fafc;
-            --accent-color: #22c55e;
+            --primary: #22c55e;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
         }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
-            padding: 20px;
+            padding-bottom: 100px;
         }
+
         header {
-            text-align: center;
-            padding: 30px 0;
-            border-bottom: 2px solid var(--card-bg);
-            margin-bottom: 30px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
         }
-        header h1 { margin: 0; color: var(--accent-color); letter-spacing: 2px; }
+
+        header h1 { font-size: 1.5rem; margin: 0; color: var(--primary); letter-spacing: 1px; }
+
+        .cart-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-            max-width: 1100px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
             margin: 0 auto;
         }
-        .product-card {
-            background: var(--card-bg);
+
+        .card {
+            background: var(--card);
             border-radius: 20px;
             overflow: hidden;
-            transition: 0.3s;
             border: 1px solid #334155;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .product-image { width: 100%; height: 280px; object-fit: cover; }
-        .product-info { padding: 20px; text-align: center; }
-        .product-title { font-size: 1.2rem; margin: 10px 0; }
-        .product-price { font-size: 1.4rem; font-weight: bold; color: var(--accent-color); margin-bottom: 20px; }
-        .whatsapp-btn {
-            display: block;
-            background-color: var(--accent-color);
-            color: white;
-            text-decoration: none;
-            padding: 15px;
+
+        .card:hover { transform: translateY(-10px); border-color: var(--primary); }
+
+        .card img { width: 100%; height: 300px; object-fit: cover; }
+
+        .card-body { padding: 20px; }
+
+        .card-title { font-size: 1.2rem; margin: 0 0 10px 0; }
+
+        .card-price { font-size: 1.4rem; font-weight: bold; color: var(--primary); margin-bottom: 15px; }
+
+        .add-to-cart {
+            width: 100%;
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            padding: 12px;
             border-radius: 12px;
             font-weight: bold;
+            cursor: pointer;
             transition: 0.3s;
         }
-        .whatsapp-btn:hover { transform: scale(1.05); background-color: #16a34a; }
+
+        .add-to-cart:hover { background: var(--primary); color: white; }
+
+        /* سلة المشتريات العائمة */
+        .checkout-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: var(--primary);
+            padding: 15px 25px;
+            border-radius: 100px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .no-data { text-align: center; padding: 50px; color: var(--text-dim); }
     </style>
 </head>
 <body>
 
 <header>
     <h1>MOHANAD STORE</h1>
-    <p>أهلاً بك في متجرك الخاص</p>
+    <button class="cart-btn">🛒 <span id="cart-count">0</span></button>
 </header>
 
-<div class="container" id="productList">
+<div class="container" id="productsGrid">
     </div>
 
-<script>
-    // لينك قاعدة البيانات الخاص بك
-    const dbURL = "https://mohanadstore-2cb02-default-rtdb.firebaseio.com/products.json";
+<a href="#" id="whatsappBtn" class="checkout-bar" target="_blank">
+    <span>إتمام الطلب عبر واتساب</span>
+    <span id="totalPrice">0 ج.م</span>
+</a>
 
-    async function loadProducts() {
+<script>
+    // بياناتك الخاصة
+    const dbURL = "https://mohanadstore-2cb02-default-rtdb.firebaseio.com/products.json";
+    const myPhone = "201016629202"; 
+    let cart = [];
+
+    async function fetchProducts() {
         try {
-            const response = await fetch(dbURL);
-            const data = await response.json();
-            const container = document.getElementById('productList');
-            container.innerHTML = "";
+            const res = await fetch(dbURL);
+            const data = await res.json();
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = "";
+
+            if(!data) {
+                grid.innerHTML = "<p class='no-data'>لا توجد منتجات حالياً.. أضف منتجات من Firebase</p>";
+                return;
+            }
 
             for (let id in data) {
                 const p = data[id];
-                container.innerHTML += `
-                    <div class="product-card">
-                        <img src="${p.img}" class="product-image" alt="${p.title}">
-                        <div class="product-info">
-                            <h2 class="product-title">${p.title}</h2>
-                            <p class="product-price">${p.price} ج.م</p>
-                            <a href="https://wa.me/201016629202?text=أريد طلب: ${p.title} بسعر ${p.price}" 
-                               target="_blank" class="whatsapp-btn">
-                                اطلب عبر واتساب ✅
-                            </a>
+                grid.innerHTML += `
+                    <div class="card">
+                        <img src="${p.img}" alt="${p.title}">
+                        <div class="card-body">
+                            <h3 class="card-title">${p.title}</h3>
+                            <div class="card-price">${p.price} ج.م</div>
+                            <button class="add-to-cart" onclick="addToCart('${p.title}', ${p.price})">إضافة للسلة +</button>
                         </div>
                     </div>
                 `;
             }
-        } catch (error) {
-            console.log("خطأ في تحميل المنتجات");
+        } catch (e) {
+            console.error("خطأ في الاتصال");
         }
     }
 
-    loadProducts();
+    function addToCart(title, price) {
+        cart.push({title, price});
+        updateUI();
+    }
+
+    function updateUI() {
+        const count = document.getElementById('cart-count');
+        const bar = document.getElementById('whatsappBtn');
+        const totalDisp = document.getElementById('totalPrice');
+        
+        count.innerText = cart.length;
+
+        if (cart.length > 0) {
+            bar.style.display = "flex";
+            const total = cart.reduce((s, item) => s + item.price, 0);
+            totalDisp.innerText = total + " ج.م";
+
+            // تجهيز رسالة الواتساب
+            let msg = "طلب جديد من متجر مهند:\n\n";
+            cart.forEach((item, index) => {
+                msg += `${index + 1}- ${item.title} (${item.price} ج.م)\n`;
+            });
+            msg += `\nإجمالي المبلغ: ${total} ج.م`;
+            
+            bar.href = `https://wa.me/${myPhone}?text=${encodeURIComponent(msg)}`;
+        } else {
+            bar.style.display = "none";
+        }
+    }
+
+    fetchProducts();
 </script>
 
 </body>
